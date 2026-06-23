@@ -1,0 +1,47 @@
+LIBRARY UEFIppHost.dll
+
+EXPORTS
+    malloc
+    free
+    calloc
+    realloc
+
+    memcpy
+    memmove
+    memset
+    memcmp
+
+    strlen
+    wcslen
+
+    strcmp
+    strncmp
+    wcscmp
+    wcsncmp
+
+    strcpy
+    strncpy
+    wcscpy
+    wcsncpy
+
+    terminate
+
+    ??2@YAPEAX_K@Z
+    ??3@YAXPEAX@Z
+    ??_U@YAPEAX_K@Z
+    ??_V@YAXPEAX@Z
+    ??3@YAXPEAX_K@Z
+
+    ??2@YAPEAX_KAEBUnothrow_t@std@@@Z
+    ??_U@YAPEAX_KAEBUnothrow_t@std@@@Z
+    ?nothrow@std@@3Unothrow_t@1@B
+
+    __std_exception_destroy
+    ?_Xlength_error@std@@YAXPEBD@Z
+    ??_7type_info@@6B@
+    __std_exception_copy
+    _CxxThrowException
+    ?_Xbad_function_call@std@@YAXXZ
+    _fltused
+    ceilf
+    __std_type_info_compare

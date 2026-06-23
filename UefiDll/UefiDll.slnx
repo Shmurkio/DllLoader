@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="UefiDll/UefiDll.vcxproj" Id="9826b11f-24e1-4b73-9270-e4903d2dd4a5" />
+</Solution>
