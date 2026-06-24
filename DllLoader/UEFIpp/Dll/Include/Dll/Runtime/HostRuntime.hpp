@@ -5,24 +5,29 @@
 
 namespace Dll::Runtime
 {
-    inline constexpr StringView HostModuleName
+    inline constexpr StringView HostModuleName{ "UEFIppHost.dll" };
+
+    struct HostContext
     {
-        "UEFIppHost.dll"
+		UEFI::Table::System* SystemTable{};
+		UEFI::Table::BootServices* BootServices{};
+		UEFI::Table::RuntimeServices* RuntimeServices{};
     };
+
+    extern "C" auto GetHostContext() -> HostContext*;
+    auto InitializeHostContext(UEFI::Table::System* SystemTable,  UEFI::Table::BootServices* BootServices, UEFI::Table::RuntimeServices* RuntimeServices) -> Foundation::Void;
 
     class HostRuntime
     {
     public:
-        static auto Register(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void;
+        static auto Register(Loader::ImportResolver& Resolver) -> Foundation::Void;
 
-        static auto RegisterCrt(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void;
-
-        static auto RegisterCppRuntime(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void;
-
-        static auto RegisterStringFunctions(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void;
-
-        static auto RegisterMemoryFunctions(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void;
-
-		static auto RegisterMsvcRuntime(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void;
+    private:
+        static auto RegisterMemoryFunctions(Loader::ImportResolver& Resolver) -> Foundation::Void;
+        static auto RegisterStringFunctions(Loader::ImportResolver& Resolver) -> Foundation::Void;
+        static auto RegisterCrt(Loader::ImportResolver& Resolver) -> Foundation::Void;
+        static auto RegisterCppRuntime(Loader::ImportResolver& Resolver) -> Foundation::Void;
+        static auto RegisterMsvcRuntime(Loader::ImportResolver& Resolver) -> Foundation::Void;
+        static auto RegisterHostFunctions(Loader::ImportResolver& Resolver) -> Foundation::Void;
     };
 }

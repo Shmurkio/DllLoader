@@ -148,6 +148,9 @@ namespace
 
 namespace Dll::Loader
 {
+    Event<LoadEventInfo> OnLoadEvent{};
+    Event<LoadFailedInfo> OnLoadFailed{};
+
     PeLoader::~PeLoader()
     {
         Unload();
@@ -179,8 +182,11 @@ namespace Dll::Loader
     {
         Unload();
 
+        OnLoadEvent({ LoadStage::Begin, nullptr, 0 });
+
         if (!FileBuffer)
         {
+            OnLoadFailed({ LoadStage::Begin, "FileBuffer is null" });
             return false;
         }
 
@@ -188,6 +194,7 @@ namespace Dll::Loader
 
         if (!RawImage.IsValid() || !RawImage.Is64())
         {
+            OnLoadFailed({ LoadStage::Begin, "Invalid or non-x64 PE image" });
             return false;
         }
 
@@ -198,13 +205,17 @@ namespace Dll::Loader
 
         if (ImageSize == 0 || HeaderSize == 0)
         {
+            OnLoadFailed({ LoadStage::Begin, "Invalid image/header size" });
             return false;
         }
+
+        OnLoadEvent({ LoadStage::AllocateImage, nullptr, ImageSize });
 
         Base_ = new Foundation::Uint8[ImageSize];
 
         if (!Base_)
         {
+            OnLoadFailed({ LoadStage::AllocateImage, "Image allocation failed" });
             return false;
         }
 
@@ -212,6 +223,8 @@ namespace Dll::Loader
 
         Memory::Zero(Base_, Size_);
         Memory::Copy(Base_, FileBuffer, HeaderSize);
+
+        OnLoadEvent({ LoadStage::CopyHeaders, Base_, HeaderSize });
 
         for (const auto& Section : RawImage.Sections())
         {
@@ -224,34 +237,49 @@ namespace Dll::Loader
 
             if (!Source)
             {
+                OnLoadFailed({ LoadStage::CopySections, "Failed to resolve raw section data" });
                 Unload();
                 return false;
             }
 
             auto* Destination = Base_ + Section.Rva;
-            const auto CopySize = Foundation::Utility::Min(Section.RawSize, Section.VirtualSize ? Section.VirtualSize : Section.RawSize);
+            const auto CopySize = Foundation::Utility::Min(
+                Section.RawSize,
+                Section.VirtualSize ? Section.VirtualSize : Section.RawSize);
+
             Memory::Copy(Destination, Source, CopySize);
         }
+
+        OnLoadEvent({ LoadStage::CopySections, Base_, Size_ });
 
         UEFIpp::Loader::PeImage MappedImage{ Base_ };
 
         if (!MappedImage.IsValid() || !MappedImage.Is64())
         {
+            OnLoadFailed({ LoadStage::CopySections, "Mapped image is invalid" });
             Unload();
             return false;
         }
+
+        OnLoadEvent({ LoadStage::ApplyRelocations, Base_, Size_ });
 
         if (!ApplyRelocations(Base_, MappedImage, PreferredBase))
         {
+            OnLoadFailed({ LoadStage::ApplyRelocations, "Failed to apply relocations" });
             Unload();
             return false;
         }
 
+        OnLoadEvent({ LoadStage::ResolveImports, Base_, Size_ });
+
         if (!ResolveImports(Base_, MappedImage, Resolver))
         {
+            OnLoadFailed({ LoadStage::ResolveImports, "Failed to resolve imports" });
             Unload();
             return false;
         }
+
+        OnLoadEvent({ LoadStage::Finished, Base_, Size_ });
 
         return true;
     }
@@ -260,6 +288,8 @@ namespace Dll::Loader
     {
         if (Base_)
         {
+            OnLoadEvent({ LoadStage::Unload, Base_, Size_ });
+
             delete[] Base_;
             Base_ = nullptr;
         }

@@ -5,78 +5,103 @@
 
 namespace Dll::Runtime
 {
-    auto HostRuntime::Register(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void
+    static HostContext HostContext_{};
+
+    auto InitializeHostContext(UEFI::Table::System* SystemTable, UEFI::Table::BootServices* BootServices, UEFI::Table::RuntimeServices* RuntimeServices) -> Foundation::Void
+    {
+        HostContext_.SystemTable = SystemTable;
+        HostContext_.BootServices = BootServices;
+        HostContext_.RuntimeServices = RuntimeServices;
+    }
+
+    extern "C" auto GetHostContext() -> HostContext*
+    {
+        return &HostContext_;
+    }
+
+    auto HostRuntime::Register(Loader::ImportResolver& Resolver) -> Foundation::Void
     {
         RegisterMemoryFunctions(Resolver);
         RegisterStringFunctions(Resolver);
         RegisterCrt(Resolver);
         RegisterCppRuntime(Resolver);
-		RegisterMsvcRuntime(Resolver);
+        RegisterMsvcRuntime(Resolver);
+		RegisterHostFunctions(Resolver);
     }
 
-    auto HostRuntime::RegisterMemoryFunctions(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void
+    auto HostRuntime::RegisterMemoryFunctions(Loader::ImportResolver& Resolver) -> Foundation::Void
     {
-        Resolver.AddFunction(HostModuleName, "memcpy", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeMemcpy));
-        Resolver.AddFunction(HostModuleName, "memmove", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeMemmove));
-        Resolver.AddFunction(HostModuleName, "memset", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeMemset));
-        Resolver.AddFunction(HostModuleName, "memcmp", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeMemcmp));
+        Resolver.AddFunction(HostModuleName, "memcpy", &RuntimeMemcpy);
+        Resolver.AddFunction(HostModuleName, "memmove", &RuntimeMemmove);
+        Resolver.AddFunction(HostModuleName, "memset", &RuntimeMemset);
+        Resolver.AddFunction(HostModuleName, "memcmp", &RuntimeMemcmp);
     }
 
-    auto HostRuntime::RegisterStringFunctions(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void
+    auto HostRuntime::RegisterStringFunctions(Loader::ImportResolver& Resolver) -> Foundation::Void
     {
-        Resolver.AddFunction(HostModuleName, "strlen", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeStrlen));
-        Resolver.AddFunction(HostModuleName, "wcslen", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeWcslen));
-
-        Resolver.AddFunction(HostModuleName, "strcmp", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeStrcmp));
-        Resolver.AddFunction(HostModuleName, "strncmp", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeStrncmp));
-
-        Resolver.AddFunction(HostModuleName, "wcscmp", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeWcscmp));
-        Resolver.AddFunction(HostModuleName, "wcsncmp", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeWcsncmp));
-
-        Resolver.AddFunction(HostModuleName, "strcpy", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeStrcpy));
-        Resolver.AddFunction(HostModuleName, "strncpy", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeStrncpy));
-
-        Resolver.AddFunction(HostModuleName, "wcscpy", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeWcscpy));
-        Resolver.AddFunction(HostModuleName, "wcsncpy", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeWcsncpy));
+        Resolver.AddFunction(HostModuleName, "strlen", &RuntimeStrlen);
+        Resolver.AddFunction(HostModuleName, "wcslen", &RuntimeWcslen);
+        Resolver.AddFunction(HostModuleName, "strcmp", &RuntimeStrcmp);
+        Resolver.AddFunction(HostModuleName, "strncmp", &RuntimeStrncmp);
+        Resolver.AddFunction(HostModuleName, "wcscmp", &RuntimeWcscmp);
+        Resolver.AddFunction(HostModuleName, "wcsncmp", &RuntimeWcsncmp);
+        Resolver.AddFunction(HostModuleName, "strcpy", &RuntimeStrcpy);
+        Resolver.AddFunction(HostModuleName, "strncpy", &RuntimeStrncpy);
+        Resolver.AddFunction(HostModuleName, "wcscpy", &RuntimeWcscpy);
+        Resolver.AddFunction(HostModuleName, "wcsncpy", &RuntimeWcsncpy);
     }
 
-    auto HostRuntime::RegisterCrt(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void
+    auto HostRuntime::RegisterCrt(Loader::ImportResolver& Resolver) -> Foundation::Void
     {
-        Resolver.AddFunction(HostModuleName, "malloc", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeMalloc));
-        Resolver.AddFunction(HostModuleName, "free", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeFree));
-        Resolver.AddFunction(HostModuleName, "calloc", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeCalloc));
-        Resolver.AddFunction(HostModuleName, "realloc", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeRealloc));
-
-        Resolver.AddFunction(HostModuleName, "terminate", Foundation::Cast::Auto<Foundation::Void*>(&Terminate));
+        Resolver.AddFunction(HostModuleName, "malloc", &RuntimeMalloc);
+        Resolver.AddFunction(HostModuleName, "free", &RuntimeFree);
+        Resolver.AddFunction(HostModuleName, "calloc", &RuntimeCalloc);
+        Resolver.AddFunction(HostModuleName, "realloc", &RuntimeRealloc);
+        Resolver.AddFunction(HostModuleName, "ceilf", &RuntimeCeilf);
+        Resolver.AddData(HostModuleName, "_fltused", &Fltused);
+        Resolver.AddFunction(HostModuleName, "__acrt_iob_func", &RuntimeAcrtIobFunc);
+        Resolver.AddFunction(HostModuleName, "__stdio_common_vfprintf", &RuntimeStdioCommonVfprintf);
+		Resolver.AddFunction(HostModuleName, "putchar", &RuntimePutchar);
+		Resolver.AddFunction(HostModuleName, "puts", &RuntimePuts);
+		Resolver.AddFunction(HostModuleName, "printf", &RuntimePrintf);
+		Resolver.AddFunction(HostModuleName, "vprintf", &RuntimeVprintf);
+		Resolver.AddFunction(HostModuleName, "vfprintf", &RuntimeVfprintf);
     }
 
-    auto HostRuntime::RegisterCppRuntime(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void
+    auto HostRuntime::RegisterCppRuntime(Loader::ImportResolver& Resolver) -> Foundation::Void
     {
-        Resolver.AddFunction(HostModuleName, "??2@YAPEAX_K@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxNew));
-        Resolver.AddFunction(HostModuleName, "??3@YAXPEAX@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxDelete));
+        Resolver.AddFunction(HostModuleName, "terminate", &Terminate);
 
-        Resolver.AddFunction(HostModuleName, "??_U@YAPEAX_K@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxNewArray));
-        Resolver.AddFunction(HostModuleName, "??_V@YAXPEAX@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxDeleteArray));
+        Resolver.AddFunction(HostModuleName, "??2@YAPEAX_K@Z", &CxxNew);
+        Resolver.AddFunction(HostModuleName, "??3@YAXPEAX@Z", &CxxDelete);
+        Resolver.AddFunction(HostModuleName, "??_U@YAPEAX_K@Z", &CxxNewArray);
+        Resolver.AddFunction(HostModuleName, "??_V@YAXPEAX@Z", &CxxDeleteArray);
 
-        Resolver.AddFunction(HostModuleName, "??2@YAPEAX_KAEBUnothrow_t@std@@@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxNewNoThrow));
-        Resolver.AddFunction(HostModuleName, "??_U@YAPEAX_KAEBUnothrow_t@std@@@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxNewArrayNoThrow));
+        Resolver.AddFunction(HostModuleName, "??3@YAXPEAX_K@Z", &CxxDeleteSized);
+        Resolver.AddFunction(HostModuleName, "??_V@YAXPEAX_K@Z", &CxxDeleteArraySized);
 
-        Resolver.AddFunction(HostModuleName, "??3@YAXPEAX_K@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxDeleteSized));
-        Resolver.AddFunction(HostModuleName, "??_V@YAXPEAX_K@Z", Foundation::Cast::Auto<Foundation::Void*>(&CxxDeleteArraySized));
+        Resolver.AddFunction(HostModuleName, "??2@YAPEAX_KAEBUnothrow_t@std@@@Z", &CxxNewNoThrow);
+        Resolver.AddFunction(HostModuleName, "??_U@YAPEAX_KAEBUnothrow_t@std@@@Z", &CxxNewArrayNoThrow);
 
         Resolver.AddData(HostModuleName, "?nothrow@std@@3Unothrow_t@1@B", StdNoThrowObject);
     }
 
-    auto HostRuntime::RegisterMsvcRuntime(Dll::Loader::ImportResolver& Resolver) -> Foundation::Void
+    auto HostRuntime::RegisterMsvcRuntime(Loader::ImportResolver& Resolver) -> Foundation::Void
     {
-        Resolver.AddFunction(HostModuleName, "__std_exception_destroy", Foundation::Cast::Auto<Foundation::Void*>(&__std_exception_destroy));
-        Resolver.AddFunction(HostModuleName, "__std_exception_copy", Foundation::Cast::Auto<Foundation::Void*>(&__std_exception_copy));
-        Resolver.AddFunction(HostModuleName, "_CxxThrowException", Foundation::Cast::Auto<Foundation::Void*>(&CxxThrowException));
-        Resolver.AddFunction(HostModuleName, "?_Xlength_error@std@@YAXPEBD@Z", Foundation::Cast::Auto<Foundation::Void*>(&StdLengthError));
+        Resolver.AddFunction(HostModuleName, "__std_exception_destroy", &StdExceptionDestroy);
+        Resolver.AddFunction(HostModuleName, "__std_exception_copy", &StdExceptionCopy);
+        Resolver.AddFunction(HostModuleName, "_CxxThrowException", &CxxThrowExceptionShim);
+        Resolver.AddFunction(HostModuleName, "__CxxFrameHandler4", &CxxFrameHandler4);
+
+        Resolver.AddFunction(HostModuleName, "?_Xlength_error@std@@YAXPEBD@Z", &StdLengthError);
+        Resolver.AddFunction(HostModuleName, "?_Xbad_function_call@std@@YAXXZ", &StdBadFunctionCall);
+        Resolver.AddFunction(HostModuleName, "__std_type_info_compare", &StdTypeInfoCompare);
+
         Resolver.AddData(HostModuleName, "??_7type_info@@6B@", TypeInfoVftable);
-        Resolver.AddFunction(HostModuleName, "?_Xbad_function_call@std@@YAXXZ", Foundation::Cast::Auto<Foundation::Void*>(&StdBadFunctionCall));
-		Resolver.AddData(HostModuleName, "_fltused", Foundation::Cast::Auto<Foundation::Void*>(&Fltused));
-		Resolver.AddFunction(HostModuleName, "ceilf", Foundation::Cast::Auto<Foundation::Void*>(&RuntimeCeilf));
-		Resolver.AddFunction(HostModuleName, "__std_type_info_compare", Foundation::Cast::Auto<Foundation::Void*>(&StdTypeInfoCompare));
     }
+
+	auto HostRuntime::RegisterHostFunctions(Loader::ImportResolver& Resolver) -> Foundation::Void
+	{
+		Resolver.AddFunction(HostModuleName, "GetHostContext", &GetHostContext);
+	}
 }

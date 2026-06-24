@@ -1,18 +1,21 @@
 #include <UEFIpp/UEFIpp.hpp>
 #include <Dll/Dll.hpp>
 
-static constexpr const char* TestNames[]
+static auto LoadStageName(Dll::Loader::LoadStage Stage) -> StringView
 {
-    "Success",
-    "TestCrt",
-    "TestNewDelete",
-    "TestStringVectorAlgorithm",
-    "TestBasicStlTypes",
-    "TestSharedWeakPtr",
-    "TestVariantAny",
-    "TestDequeList",
-    "TestAssociativeContainers"
-};
+    switch (Stage)
+    {
+    case Dll::Loader::LoadStage::Begin: return "Begin";
+    case Dll::Loader::LoadStage::AllocateImage: return "AllocateImage";
+    case Dll::Loader::LoadStage::CopyHeaders: return "CopyHeaders";
+    case Dll::Loader::LoadStage::CopySections: return "CopySections";
+    case Dll::Loader::LoadStage::ApplyRelocations: return "ApplyRelocations";
+    case Dll::Loader::LoadStage::ResolveImports: return "ResolveImports";
+    case Dll::Loader::LoadStage::Finished: return "Finished";
+    case Dll::Loader::LoadStage::Unload: return "Unload";
+    default: return "Unknown";
+    }
+}
 
 /*
 UEFIppHost.lib / UEFIppHost.def
@@ -28,6 +31,7 @@ required by the MSVC STL, CRT, and C++ runtime support layers.
 To generate UEFIppHost.lib:
 
     lib /def:UEFIppHost.def /machine:x64 /out:UEFIppHost.lib
+	(or run BuildLib.bat if the vcvars64.bat path matches your Visual Studio installation)
 
 Import Resolution:
 - Every symbol exported by UEFIppHost.def must be implemented and registered
@@ -45,13 +49,50 @@ Test DLL:
 */
 auto Main([[maybe_unused]] const Vector<String>& Args) -> Foundation::Bool
 {
+    // Log DLL loader stage changes
+    Dll::Loader::OnLoadEvent.Subscribe([](const Dll::Loader::LoadEventInfo& Info)
+    {
+        Stream::Out::Serial
+            << "[DLL Loader] Stage=" << LoadStageName(Info.Stage) << " Base=0x" << Info.Base << " Size=" << Info.Size << Stream::Endl;
+    });
+
+    // Log DLL loader failures
+    Dll::Loader::OnLoadFailed.Subscribe([](const Dll::Loader::LoadFailedInfo& Info)
+    {
+        Stream::Out::Serial
+            << "[DLL Loader][Failed] Stage=" << LoadStageName(Info.Stage) << ": " << Info.Reason << Stream::Endl;
+    });
+
+    // Log resolved imports
+    Dll::Loader::OnImportResolved.Subscribe([](const Dll::Loader::ImportResolvedInfo& Info)
+    {
+        Stream::Out::Serial
+            << "[DLL Loader] Resolved import " << Info.Module << "!" << Info.Name  << " -> 0x" << Info.Address << Stream::Endl;
+    });
+
+    // Log unresolved/unsupported imports
+    Dll::Loader::OnImportFailed.Subscribe([](const Dll::Loader::ImportFailedInfo& Info)
+    {
+        Stream::Out::Serial
+            << "[DLL Loader][Import Failed] " << Info.Module << "!" << Info.Name << Stream::Endl;
+    });
+
+    // Log DLL imported function invocations
     Dll::Runtime::OnFuncCall.Subscribe([](StringView FunctionName)
     {
         Stream::Out::Serial
             << "[DLL Runtime] " << FunctionName << Stream::Endl;
     });
 
+    // Log DLL runtime failures and unimplemented paths
+    Dll::Runtime::OnUnhandledCall.Subscribe([](const Dll::Runtime::UnhandledCallInfo& Info)
+    {
+        Stream::Out::Serial
+            << "[DLL Runtime][Unhandled] " << Info.FunctionName << ": " << Info.Reason << Stream::Endl;
+    });
+
     Dll::Loader::ImportResolver Resolver{};
+    Dll::Runtime::InitializeHostContext(&UEFI::Context::SystemTable(), &UEFI::Context::BootServices(), &UEFI::Context::RuntimeServices());
     Dll::Runtime::HostRuntime::Register(Resolver);
 
     Stream::FileInputStream DllFile{ "UefiDll.dll" };
@@ -78,75 +119,14 @@ auto Main([[maybe_unused]] const Vector<String>& Args) -> Foundation::Bool
         return false;
     }
 
+    Dll::Runtime::SetCurrentImageBase(Loader.Base());
+
     const auto Status = DllMain();
-
-    if (Status == 0)
-    {
-        Stream::Out::Serial
-            << "========================================" << Stream::Endl
-            << "DLL runtime validation successful" << Stream::Endl
-            << "========================================" << Stream::Endl
-            << "Working features:" << Stream::Endl
-            << Stream::Endl
-
-            << "[CRT]" << Stream::Endl
-            << "  malloc / free" << Stream::Endl
-            << "  calloc / realloc" << Stream::Endl
-            << "  memcpy / memmove / memset / memcmp" << Stream::Endl
-            << "  strlen / wcslen" << Stream::Endl
-            << "  strcmp / strncmp" << Stream::Endl
-            << "  wcscmp / wcsncmp" << Stream::Endl
-            << "  strcpy / strncpy" << Stream::Endl
-            << "  wcscpy / wcsncpy" << Stream::Endl
-            << Stream::Endl
-
-            << "[C++ Runtime]" << Stream::Endl
-            << "  operator new / delete" << Stream::Endl
-            << "  operator new[] / delete[]" << Stream::Endl
-            << "  std::nothrow new" << Stream::Endl
-            << "  sized delete" << Stream::Endl
-            << Stream::Endl
-
-            << "[STL]" << Stream::Endl
-            << "  std::string" << Stream::Endl
-            << "  std::vector" << Stream::Endl
-            << "  std::unique_ptr" << Stream::Endl
-            << "  std::shared_ptr" << Stream::Endl
-            << "  std::weak_ptr" << Stream::Endl
-            << "  std::optional" << Stream::Endl
-            << "  std::variant" << Stream::Endl
-            << "  std::any" << Stream::Endl
-            << "  std::function" << Stream::Endl
-            << "  std::array" << Stream::Endl
-            << "  std::pair" << Stream::Endl
-            << "  std::tuple" << Stream::Endl
-            << "  std::deque" << Stream::Endl
-            << "  std::list" << Stream::Endl
-            << "  std::set" << Stream::Endl
-            << "  std::unordered_set" << Stream::Endl
-            << "  std::map" << Stream::Endl
-            << "  std::unordered_map" << Stream::Endl
-            << "  std::sort" << Stream::Endl
-            << Stream::Endl
-
-            << "[MSVC Runtime]" << Stream::Endl
-            << "  std::type_info helpers" << Stream::Endl
-            << "  std::exception construction/destruction stubs" << Stream::Endl
-            << "  STL throw-path stubs" << Stream::Endl
-            << "  _CxxThrowException -> terminate stub" << Stream::Endl;
-    }
-	else if (Status > 0 && Status < sizeof(TestNames) / sizeof(TestNames[0]))
-	{
-		Stream::Out::Serial
-			<< "DLL runtime validation failed in test: " << TestNames[Status] << Stream::Endl;
-	}
-	else
-	{
-		Stream::Out::Serial
-			<< "DLL runtime validation failed with unknown error code: " << Status << Stream::Endl;
-	}
 
     Loader.Unload();
 
-    return Status == 0;
+	Stream::Out::Serial
+		<< "DllMain returned: " << Status << Stream::Endl;
+
+    return true;
 }

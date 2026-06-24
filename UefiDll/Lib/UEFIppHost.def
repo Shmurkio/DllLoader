@@ -45,3 +45,12 @@ EXPORTS
     _fltused
     ceilf
     __std_type_info_compare
+    __CxxFrameHandler4
+
+    GetHostContext
+
+    __acrt_iob_func
+    __stdio_common_vfprintf
+    putchar
+    puts
+    printf

@@ -1,7 +1,5 @@
 .code
 
-.code
-
 FastCopy PROC
     mov     rax, rcx
 

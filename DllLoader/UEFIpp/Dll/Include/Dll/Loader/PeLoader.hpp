@@ -5,6 +5,34 @@
 
 namespace Dll::Loader
 {
+    enum class LoadStage
+    {
+        Begin,
+        AllocateImage,
+        CopyHeaders,
+        CopySections,
+        ApplyRelocations,
+        ResolveImports,
+        Finished,
+        Unload,
+    };
+
+    struct LoadEventInfo
+    {
+        LoadStage Stage{};
+        Foundation::Void* Base{};
+        Foundation::Size Size{};
+    };
+
+    struct LoadFailedInfo
+    {
+        LoadStage Stage{};
+        StringView Reason;
+    };
+
+    extern Event<LoadEventInfo> OnLoadEvent;
+    extern Event<LoadFailedInfo> OnLoadFailed;
+
     class PeLoader
     {
     public:

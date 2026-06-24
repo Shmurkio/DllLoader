@@ -2,6 +2,9 @@
 
 namespace Dll::Loader
 {
+    Event<ImportResolvedInfo> OnImportResolved{};
+    Event<ImportFailedInfo> OnImportFailed{};
+
     auto ImportResolver::AddFunction(StringView Module, StringView Name, Foundation::Void* Address) -> void
     {
         Symbols_.PushBack({ Module, Name, Address, ImportKind::Function });
@@ -16,9 +19,7 @@ namespace Dll::Loader
     {
         if (ByOrdinal)
         {
-            Stream::Out::Console
-                << "Unsupported ordinal import: " << Module << " Ordinal=" << Ordinal << Stream::Endl;
-
+            OnImportFailed({ Module, Name, Ordinal, ByOrdinal, ImportResolveFailure::UnsupportedOrdinal });
             return nullptr;
         }
 
@@ -26,12 +27,12 @@ namespace Dll::Loader
         {
             if (Symbol.Module == Module && Symbol.Name == Name)
             {
+				OnImportResolved({ Module, Name, Symbol.Address, Symbol.Kind });
                 return Symbol.Address;
             }
         }
 
-        Stream::Out::Console
-            << "Unresolved import: " << Module << "!" << Name << Stream::Endl;
+		OnImportFailed({ Module, Name, Ordinal, ByOrdinal, ImportResolveFailure::UnresolvedSymbol });
 
         return nullptr;
     }

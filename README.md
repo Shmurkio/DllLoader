@@ -1,17 +1,37 @@
 # DllLoader
 
-A modern C++ PE/DLL loader for UEFI with CRT, STL, import resolution, relocation, and manual image mapping support.
+A modern C++ PE/DLL loader and runtime environment for UEFI.
+
+DllLoader provides manual PE image mapping, relocation processing, import resolution, CRT support, C++ runtime support, exception handling, and STL support for dynamically loaded DLLs running inside UEFI.
+
+The project allows DLLs to use modern C++ features without relying on the Windows loader or operating system services.
+
+---
 
 ## Features
 
+### PE Loader
+
 * Manual PE image mapping
-* Base relocation support
+* Section mapping
+* Base relocations
 * Import resolution
 * Export resolution
-* Custom runtime environment
-* MSVC CRT support
-* C++ runtime support
-* STL support in loaded DLLs
+* Dynamic symbol registration
+* Runtime event system
+* Host-provided imports
+
+### Runtime Environment
+
+* Custom host runtime
+* CRT support
+* MSVC C++ runtime support
+* Exception handling support
+* STL support
+* Host context access
+* Runtime diagnostics and tracing
+
+---
 
 ## Supported Runtime Features
 
@@ -25,6 +45,10 @@ A modern C++ PE/DLL loader for UEFI with CRT, STL, import resolution, relocation
 * wcscmp / wcsncmp
 * strcpy / strncpy
 * wcscpy / wcsncpy
+* putchar
+* puts
+* printf
+* vfprintf
 
 ### C++
 
@@ -32,10 +56,29 @@ A modern C++ PE/DLL loader for UEFI with CRT, STL, import resolution, relocation
 * operator new[] / delete[]
 * std::nothrow new
 * sized delete
+* RTTI support
+* type_info support
+
+### Exception Handling
+
+* throw / catch
+* catch(...)
+* catch by value
+* catch by reference
+* nested exceptions
+* rethrow (`throw;`)
+* multiple inheritance catch adjustment
+* MSVC exception metadata decoding
+* Custom `_CxxThrowException`
+* Custom exception dispatching
+* Custom catch continuation trampoline
 
 ### STL
 
+Validated functionality includes:
+
 * std::string
+* std::wstring
 * std::vector
 * std::unique_ptr
 * std::shared_ptr
@@ -55,242 +98,137 @@ A modern C++ PE/DLL loader for UEFI with CRT, STL, import resolution, relocation
 * std::unordered_map
 * std::sort
 
-## Notes
+---
 
-The loader provides a custom host runtime through `UEFIppHost.dll`, allowing loaded DLLs to use CRT, C++, and a large subset of the MSVC STL without relying on the Windows loader.
+## Host Runtime
 
-See `UefiDll/DllMain.cpp` for example DLL code and runtime validation tests.
-
-## Example
+Loaded DLLs can access the UEFI environment through the host runtime.
 
 ```cpp
-static auto TestCrt() -> bool
+auto* Host = GetHostContext();
+
+Host->SystemTable;
+Host->BootServices;
+Host->RuntimeServices;
+```
+
+This allows DLLs to interact with UEFI services without directly linking against UEFI libraries.
+
+---
+
+## Runtime Events
+
+The runtime exposes diagnostic events which can be used to monitor loader and runtime activity.
+
+```cpp
+Dll::Runtime::OnFuncCall.Subscribe(
+[](StringView FunctionName)
 {
-    auto* M = static_cast<char*>(malloc(32));
-    if (!M) return false;
+    Stream::Out::Serial
+        << "[DLL Runtime] "
+        << FunctionName
+        << Stream::Endl;
+});
 
-    memset(M, 'A', 31);
-    M[31] = 0;
-
-    if (strlen(M) != 31) return false;
-    free(M);
-
-    auto* C = static_cast<unsigned char*>(calloc(8, 4));
-    if (!C) return false;
-
-    for (int i = 0; i < 32; ++i)
-        if (C[i] != 0) return false;
-
-    C = static_cast<unsigned char*>(realloc(C, 64));
-    if (!C) return false;
-    free(C);
-
-    char A[16]{};
-    char B[16]{};
-
-    strcpy(A, "Hello");
-    memcpy(B, A, 6);
-
-    if (strcmp(A, B) != 0) return false;
-    if (strncmp(A, "Hel", 3) != 0) return false;
-    if (memcmp(A, B, 6) != 0) return false;
-
-    char Move[16] = "abcdef";
-    memmove(Move + 2, Move, 4);
-
-    if (Move[2] != 'a') return false;
-    if (Move[3] != 'b') return false;
-    if (Move[4] != 'c') return false;
-    if (Move[5] != 'd') return false;
-
-    wchar_t W1[16]{};
-    wchar_t W2[16]{};
-
-    wcscpy(W1, L"Hello");
-    wcsncpy(W2, W1, 6);
-
-    if (wcslen(W1) != 5) return false;
-    if (wcscmp(W1, W2) != 0) return false;
-    if (wcsncmp(W1, L"Hel", 3) != 0) return false;
-
-    return true;
-}
-
-static auto TestNewDelete() -> bool
+Dll::Runtime::OnUnhandledCall.Subscribe(
+[](const Dll::Runtime::UnhandledCallInfo& Info)
 {
-    auto* A = new int{ 123 };
-    if (!A || *A != 123) return false;
-    delete A;
+    Stream::Out::Serial
+        << "[DLL Runtime][Unhandled] "
+        << Info.FunctionName
+        << ": "
+        << Info.Reason
+        << Stream::Endl;
+});
+```
 
-    auto* B = new int[8];
-    if (!B) return false;
+The loader also exposes events for image loading, import resolution, failures, and unload operations.
 
-    for (int i = 0; i < 8; ++i)
-        B[i] = i * 3;
+---
 
-    for (int i = 0; i < 8; ++i)
-        if (B[i] != i * 3) return false;
+## Example DLL
 
-    delete[] B;
-
-    auto* C = new(std::nothrow) char[32];
-    if (!C) return false;
-    delete[] C;
-
-    return true;
-}
-
-static auto TestStringVectorAlgorithm() -> bool
+```cpp
+extern "C" __declspec(dllexport)
+auto DllMain() -> int
 {
-    std::string Text = "Hello";
-    Text += " UEFI";
+    printf("=== UEFI DLL C++ runtime test ===\n");
 
-    if (Text != "Hello UEFI") return false;
-    if (Text.size() != 10) return false;
-
-    std::vector<int> Values{ 5, 1, 4, 2, 3 };
-    std::sort(Values.begin(), Values.end());
-
-    for (int i = 0; i < 5; ++i)
-        if (Values[i] != i + 1) return false;
-
-    return true;
-}
-
-static auto TestBasicStlTypes() -> bool
-{
-    std::unique_ptr<int> Ptr = std::make_unique<int>(42);
-    if (!Ptr || *Ptr != 42) return false;
-
-    std::optional<int> Opt{};
-    if (Opt.has_value()) return false;
-
-    Opt = 55;
-    if (!Opt || *Opt != 55) return false;
-
-    std::array<int, 4> Arr{ 1, 2, 3, 4 };
-    if (Arr.size() != 4) return false;
-    if (Arr[0] != 1 || Arr[3] != 4) return false;
-
-    std::pair<int, int> Pair{ 10, 20 };
-    if (Pair.first != 10 || Pair.second != 20) return false;
-
-    std::tuple<int, int, int> Tup{ 1, 2, 3 };
-    if (std::get<0>(Tup) != 1) return false;
-    if (std::get<1>(Tup) != 2) return false;
-    if (std::get<2>(Tup) != 3) return false;
-
-    std::function<int(int)> Fn = [](int x)
-        {
-            return x * 2;
-        };
-
-    if (!Fn) return false;
-    if (Fn(21) != 42) return false;
-
-    return true;
-}
-
-static auto TestSharedWeakPtr() -> bool
-{
-    auto Shared = std::make_shared<int>(123);
-    std::weak_ptr<int> Weak = Shared;
-
+    try
     {
-        auto Locked = Weak.lock();
-        if (!Locked || *Locked != 123) return false;
+        std::vector<int> Values{};
+
+        for (int i = 1; i <= 8; ++i)
+        {
+            Values.push_back(i * 10);
+        }
+
+        printf("vector size: %u\n", static_cast<unsigned>(Values.size()));
+
+        int Sum{};
+
+        for (auto Value : Values)
+        {
+            Sum += Value;
+        }
+
+        printf("vector sum: %d\n", Sum);
+
+        std::string Text = "std::string works";
+        Text += " + append";
+
+        printf("string: %s\n", Text.c_str());
+
+        std::wstring Wide = L"std::wstring exception works";
+        throw Wide;
+    }
+    catch (const std::wstring&)
+    {
+        printf("caught std::wstring exception\n");
+    }
+    catch (...)
+    {
+        printf("unexpected catch-all\n");
+        return 1;
     }
 
-    Shared.reset();
-
-    return Weak.expired();
-}
-
-static auto TestVariantAny() -> bool
-{
-    std::variant<int, const char*> Var{ 42 };
-
-    if (!std::holds_alternative<int>(Var)) return false;
-    if (std::get<int>(Var) != 42) return false;
-
-    Var = "Hello";
-
-    if (!std::holds_alternative<const char*>(Var)) return false;
-
-    std::any Any = 77;
-
-    if (!Any.has_value()) return false;
-    if (std::any_cast<int>(Any) != 77) return false;
-
-    Any = const_cast<char*>("UEFI");
-
-    if (std::any_cast<char*>(Any)[0] != 'U') return false;
-
-    return true;
-}
-
-static auto TestDequeList() -> bool
-{
-    std::deque<int> Deque{};
-    Deque.push_back(1);
-    Deque.push_back(2);
-    Deque.push_front(0);
-
-    if (Deque.size() != 3) return false;
-    if (Deque[0] != 0 || Deque[1] != 1 || Deque[2] != 2) return false;
-
-    std::list<int> List{};
-    List.push_back(3);
-    List.push_back(1);
-    List.push_back(2);
-    List.sort();
-
-    int Expected = 1;
-
-    for (auto Value : List)
-        if (Value != Expected++) return false;
-
-    return true;
-}
-
-static auto TestAssociativeContainers() -> bool
-{
-    std::set<int> Set{};
-    Set.insert(3);
-    Set.insert(1);
-    Set.insert(2);
-
-    if (Set.size() != 3) return false;
-    if (!Set.contains(1) || !Set.contains(2) || !Set.contains(3)) return false;
-
-    std::unordered_set<int> HashSet{};
-    HashSet.insert(10);
-    HashSet.insert(20);
-    HashSet.insert(30);
-
-    if (HashSet.size() != 3) return false;
-    if (!HashSet.contains(10) || !HashSet.contains(20) || !HashSet.contains(30)) return false;
-
-    std::map<int, int> Map{};
-    Map[1] = 10;
-    Map[2] = 20;
-    Map[3] = 30;
-
-    if (Map.size() != 3) return false;
-    if (Map[1] != 10 || Map[2] != 20 || Map[3] != 30) return false;
-
-    std::unordered_map<int, int> HashMap{};
-    HashMap[10] = 100;
-    HashMap[20] = 200;
-    HashMap[30] = 300;
-
-    if (HashMap.size() != 3) return false;
-    if (HashMap[10] != 100 || HashMap[20] != 200 || HashMap[30] != 300) return false;
-
-    return true;
+    printf("=== all tests passed ===\n");
+    return 0;
 }
 ```
+
+---
+
+## Validation
+
+The runtime has been validated with:
+
+* Dynamic allocation
+* STL containers
+* STL algorithms
+* Smart pointers
+* RTTI
+* Exception handling
+* Nested exceptions
+* Exception rethrow
+* Multiple inheritance exception adjustment
+* Formatted console output
+
+Example validation tests can be found in:
+
+```text
+UefiDll/DllMain.cpp
+```
+
+---
 
 ## Showcase
 
 [![Showcase](https://img.youtube.com/vi/nBW1Z3q9wao/maxresdefault.jpg)](https://www.youtube.com/watch?v=nBW1Z3q9wao)
+![Exceptions Showcase](Docs/image.png)
+
+---
+
+## Status
+
+This project is actively developed and serves as an experimental modern C++ runtime environment for UEFI with support for dynamically loaded PE images and a growing subset of the MSVC CRT and STL.

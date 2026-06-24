@@ -173,6 +173,9 @@
     <ClCompile Include="Dll\Source\Runtime\CxxRuntime.cpp" />
     <ClCompile Include="Dll\Source\Runtime\HostRuntime.cpp" />
     <ClCompile Include="Dll\Source\Runtime\MsvcRuntime.cpp" />
+    <ClCompile Include="Dll\Source\Runtime\Msvc\FuncInfo4.cpp" />
+    <ClCompile Include="Dll\Source\Runtime\Msvc\ThrowInfo.cpp" />
+    <ClCompile Include="Dll\Source\Runtime\Msvc\UnwindInfo.cpp" />
     <ClCompile Include="Entry.cpp" />
     <ClCompile Include="UEFIpp\Source\Bus\Pci.cpp" />
     <ClCompile Include="UEFIpp\Source\Bus\PciDevice.cpp" />
@@ -210,6 +213,10 @@
     <ClInclude Include="Dll\Include\Dll\Runtime\CxxRuntime.hpp" />
     <ClInclude Include="Dll\Include\Dll\Runtime\HostRuntime.hpp" />
     <ClInclude Include="Dll\Include\Dll\Runtime\MsvcRuntime.hpp" />
+    <ClInclude Include="Dll\Include\Dll\Runtime\Msvc\FuncInfo4.hpp" />
+    <ClInclude Include="Dll\Include\Dll\Runtime\Msvc\StdException.hpp" />
+    <ClInclude Include="Dll\Include\Dll\Runtime\Msvc\ThrowInfo.hpp" />
+    <ClInclude Include="Dll\Include\Dll\Runtime\Msvc\UnwindInfo.hpp" />
     <ClInclude Include="Dll\Include\Dll\Runtime\Runtime.hpp" />
     <ClInclude Include="UEFIpp\Include\UEFIpp\Bus\Bus.hpp" />
     <ClInclude Include="UEFIpp\Include\UEFIpp\Bus\Pci.hpp" />
@@ -383,6 +390,7 @@
     <ClInclude Include="Uefi\Util\Util.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <MASM Include="Dll\Source\Runtime\Msvc\ExceptionAbi.asm" />
     <MASM Include="UEFIpp\Include\UEFIpp\Architecture\X64\Cpu\RandomAsm.asm" />
     <MASM Include="UEFIpp\Source\Memory\MemoryAsm.asm" />
   </ItemGroup>
