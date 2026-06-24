@@ -15,18 +15,21 @@ EhSavedRsp dq 0
 PUBLIC CallCatchAndContinue
 
 CallCatchAndContinue PROC
-    mov EhSavedOriginalRbp, rbp
     mov EhSavedEstablisher, rdx
     mov EhSavedContinuation, r8
     mov EhSavedRsp, r9
-    sub rsp, 20h
+
+    sub rsp, 28h
     call rcx
-    add rsp, 20h
+    add rsp, 28h
+
     mov rdx, EhSavedEstablisher
-    mov r8, EhSavedContinuation
-    mov r9, EhSavedRsp
+    mov r8,  EhSavedContinuation
+    mov r9,  EhSavedRsp
+
     mov rsp, r9
-    mov rbp, EhSavedOriginalRbp
+    mov rbp, rdx
+
     jmp r8
 CallCatchAndContinue ENDP
 

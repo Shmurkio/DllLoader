@@ -1,9 +1,7 @@
 #include <Dll/Runtime/CrtRuntime.hpp>
 #include <Dll/Runtime/HostRuntime.hpp>
 #include <cstdarg>
-
-#define LogCall() OnFuncCall(__func__)
-#define Unhandled(Reason) OnUnhandledCall({ __func__, Reason })
+#include <Dll/Runtime/Trace.hpp>
 
 namespace Dll::Runtime
 {
@@ -22,20 +20,19 @@ namespace Dll::Runtime
         };
     }
 
-    Event<StringView> OnFuncCall{};
-    Event<UnhandledCallInfo> OnUnhandledCall{};
-
     extern "C" Foundation::Int32 Fltused = 1;
 
     extern "C" auto RuntimeMalloc(Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+        DLL_CRT_TRACE(__func__);
+
         return Memory::Allocator::AllocatePool(Size);
     }
 
     extern "C" auto RuntimeFree(Foundation::Void* Pointer) -> Foundation::Void
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
+
         if (Pointer)
         {
             Memory::Allocator::FreePool(Pointer);
@@ -44,7 +41,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeCalloc(Foundation::Size Count, Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         const auto Total = Count * Size;
         auto* MemoryBlock = RuntimeMalloc(Total);
@@ -59,7 +56,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeRealloc(Foundation::Void* Pointer, Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         if (!Pointer)
         {
@@ -81,34 +78,41 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeMemcpy(Foundation::Void* Destination, const Foundation::Void* Source, Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
+
         Memory::Copy(Destination, Source, Size);
+
         return Destination;
     }
 
     extern "C" auto RuntimeMemmove(Foundation::Void* Destination, const Foundation::Void* Source, Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
+
         Memory::Move(Destination, Source, Size);
+
         return Destination;
     }
 
     extern "C" auto RuntimeMemset(Foundation::Void* Destination, Foundation::Int32 Value, Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
+
         Memory::Set(Destination, static_cast<Foundation::Uint8>(Value), Size);
+
         return Destination;
     }
 
     extern "C" auto RuntimeMemcmp(const Foundation::Void* Left, const Foundation::Void* Right, Foundation::Size Size) -> Foundation::Int32
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
+
         return Memory::Compare(Left, Right, Size);
     }
 
     extern "C" auto RuntimeStrlen(const Foundation::Char* String) -> Foundation::Size
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         Foundation::Size Length{};
 
@@ -122,7 +126,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeWcslen(const Foundation::WChar* String) -> Foundation::Size
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         Foundation::Size Length{};
 
@@ -136,7 +140,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeStrcmp(const Foundation::Char* Left, const Foundation::Char* Right) -> Foundation::Int32
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         while (*Left && *Left == *Right)
         {
@@ -149,7 +153,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeStrncmp(const Foundation::Char* Left, const Foundation::Char* Right, Foundation::Size Count) -> Foundation::Int32
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         for (Foundation::Size i = 0; i < Count; ++i)
         {
@@ -164,7 +168,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeWcscmp(const Foundation::WChar* Left, const Foundation::WChar* Right) -> Foundation::Int32
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         while (*Left && *Left == *Right)
         {
@@ -177,7 +181,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeWcsncmp(const Foundation::WChar* Left, const Foundation::WChar* Right, Foundation::Size Count) -> Foundation::Int32
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         for (Foundation::Size i = 0; i < Count; ++i)
         {
@@ -192,18 +196,20 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeStrcpy(Foundation::Char* Destination, const Foundation::Char* Source) -> Foundation::Char*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         auto* Result = Destination;
 
-        while ((*Destination++ = *Source++) != 0) {}
+        while ((*Destination++ = *Source++) != 0)
+        {
+        }
 
         return Result;
     }
 
     extern "C" auto RuntimeStrncpy(Foundation::Char* Destination, const Foundation::Char* Source, Foundation::Size Count) -> Foundation::Char*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         Foundation::Size i{};
 
@@ -222,18 +228,20 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeWcscpy(Foundation::WChar* Destination, const Foundation::WChar* Source) -> Foundation::WChar*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         auto* Result = Destination;
 
-        while ((*Destination++ = *Source++) != 0) {}
+        while ((*Destination++ = *Source++) != 0)
+        {
+        }
 
         return Result;
     }
 
     extern "C" auto RuntimeWcsncpy(Foundation::WChar* Destination, const Foundation::WChar* Source, Foundation::Size Count) -> Foundation::WChar*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         Foundation::Size i{};
 
@@ -252,7 +260,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeCeilf(Foundation::Float Value) -> Foundation::Float
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         const auto Integer = static_cast<Foundation::Int32>(Value);
 
@@ -271,7 +279,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeAcrtIobFunc(Foundation::Int32 Index) -> Foundation::Void*
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         if (Index < 0 || Index >= 3)
         {
@@ -283,7 +291,6 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimePutchar(Foundation::Int32 Character) -> Foundation::Int32
     {
-        //LogCall();
         auto* Host = GetHostContext();
 
         if (Character == '\n')
@@ -301,10 +308,11 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimePuts(const Foundation::Char* String) -> Foundation::Int32
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
 
         if (!String)
         {
+			DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::CRT, "RuntimePuts called with null string");
             return -1;
         }
 
@@ -352,10 +360,11 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeVprintf(const Foundation::Char* Format, va_list Args) -> Foundation::Int32
     {
-		LogCall();
+		DLL_CRT_TRACE(__func__);
 
         if (!Format)
         {
+			DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::CRT, "RuntimeVprintf called with null format string");
             return -1;
         }
 
@@ -469,7 +478,7 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimePrintf(const Foundation::Char* Format, ...) -> Foundation::Int32
     {
-        LogCall();
+        DLL_CRT_TRACE(__func__);
 
         va_list Args;
         va_start(Args, Format);
@@ -483,10 +492,11 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeVfprintf(Foundation::Void* File, const Foundation::Char* Format, va_list Args) -> Foundation::Int32
     {
-		LogCall();
+		DLL_CRT_TRACE(__func__);
 
 		if (!File)
 		{
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::CRT, "RuntimeVfprintf called with null FILE");
 			return -1;
 		}
 
@@ -503,7 +513,8 @@ namespace Dll::Runtime
 
     extern "C" auto RuntimeStdioCommonVfprintf(Foundation::Uint64 Options, Foundation::Void* Stream, const Foundation::Char* Format, Foundation::Void* Locale, va_list Args) -> Foundation::Int32
     {
-        LogCall();
+		DLL_CRT_TRACE(__func__);
+
 		return RuntimeVfprintf(Stream, Format, Args);
     }
 }

@@ -4,3 +4,4 @@
 #include <Dll/Runtime/HostRuntime.hpp>
 #include <Dll/Runtime/CrtRuntime.hpp>
 #include <Dll/Runtime/MsvcRuntime.hpp>
+#include <Dll/Runtime/Trace.hpp>

@@ -105,6 +105,9 @@
     <ClCompile Include="Dll\Source\Runtime\Msvc\FuncInfo4.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Dll\Source\Runtime\Trace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DFA\Alphabet.hpp">
@@ -672,6 +675,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Dll\Include\Dll\Runtime\Msvc\StdException.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Dll\Include\Dll\Runtime\Trace.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

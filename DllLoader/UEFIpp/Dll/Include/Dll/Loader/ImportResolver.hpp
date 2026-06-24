@@ -18,32 +18,6 @@ namespace Dll::Loader
         ImportKind Kind{ ImportKind::Function };
     };
 
-    enum class ImportResolveFailure
-    {
-        UnsupportedOrdinal,
-        UnresolvedSymbol
-    };
-
-    struct ImportResolvedInfo
-    {
-        StringView Module;
-        StringView Name;
-        Foundation::Void* Address{};
-        ImportKind Kind{};
-    };
-
-    struct ImportFailedInfo
-    {
-        StringView Module;
-        StringView Name;
-        Foundation::Uint16 Ordinal{};
-        Foundation::Bool ByOrdinal{};
-        ImportResolveFailure Reason{};
-    };
-
-    extern Event<ImportResolvedInfo> OnImportResolved;
-    extern Event<ImportFailedInfo> OnImportFailed;
-
     class ImportResolver
     {
     public:

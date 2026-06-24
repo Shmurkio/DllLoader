@@ -1,22 +1,6 @@
 #include <UEFIpp/UEFIpp.hpp>
 #include <Dll/Dll.hpp>
 
-static auto LoadStageName(Dll::Loader::LoadStage Stage) -> StringView
-{
-    switch (Stage)
-    {
-    case Dll::Loader::LoadStage::Begin: return "Begin";
-    case Dll::Loader::LoadStage::AllocateImage: return "AllocateImage";
-    case Dll::Loader::LoadStage::CopyHeaders: return "CopyHeaders";
-    case Dll::Loader::LoadStage::CopySections: return "CopySections";
-    case Dll::Loader::LoadStage::ApplyRelocations: return "ApplyRelocations";
-    case Dll::Loader::LoadStage::ResolveImports: return "ResolveImports";
-    case Dll::Loader::LoadStage::Finished: return "Finished";
-    case Dll::Loader::LoadStage::Unload: return "Unload";
-    default: return "Unknown";
-    }
-}
-
 /*
 UEFIppHost.lib / UEFIppHost.def
 
@@ -49,50 +33,59 @@ Test DLL:
 */
 auto Main([[maybe_unused]] const Vector<String>& Args) -> Foundation::Bool
 {
-    // Log DLL loader stage changes
-    Dll::Loader::OnLoadEvent.Subscribe([](const Dll::Loader::LoadEventInfo& Info)
+    Dll::Runtime::OnTrace.Subscribe(
+    [](const Dll::Runtime::TraceInfo& Info)
     {
         Stream::Out::Serial
-            << "[DLL Loader] Stage=" << LoadStageName(Info.Stage) << " Base=0x" << Info.Base << " Size=" << Info.Size << Stream::Endl;
-    });
+            << "[DLL " << Dll::Runtime::TraceCategoryName(Info.Category) << "][" << Dll::Runtime::TraceLevelName(Info.Level) << "] ";
 
-    // Log DLL loader failures
-    Dll::Loader::OnLoadFailed.Subscribe([](const Dll::Loader::LoadFailedInfo& Info)
-    {
-        Stream::Out::Serial
-            << "[DLL Loader][Failed] Stage=" << LoadStageName(Info.Stage) << ": " << Info.Reason << Stream::Endl;
-    });
+        if (!Info.FunctionName.Empty())
+        {
+            Stream::Out::Serial
+                << Info.FunctionName << ":" << Info.LineNumber << " ";
+        }
 
-    // Log resolved imports
-    Dll::Loader::OnImportResolved.Subscribe([](const Dll::Loader::ImportResolvedInfo& Info)
-    {
-        Stream::Out::Serial
-            << "[DLL Loader] Resolved import " << Info.Module << "!" << Info.Name  << " -> 0x" << Info.Address << Stream::Endl;
-    });
+        Stream::Out::Serial << Info.Message;
 
-    // Log unresolved/unsupported imports
-    Dll::Loader::OnImportFailed.Subscribe([](const Dll::Loader::ImportFailedInfo& Info)
-    {
-        Stream::Out::Serial
-            << "[DLL Loader][Import Failed] " << Info.Module << "!" << Info.Name << Stream::Endl;
-    });
+        if (!Info.Module.Empty() || !Info.Symbol.Empty())
+        {
+            Stream::Out::Serial
+                << " " << Info.Module << "!" << Info.Symbol;
+        }
 
-    // Log DLL imported function invocations
-    Dll::Runtime::OnFuncCall.Subscribe([](StringView FunctionName)
-    {
-        Stream::Out::Serial
-            << "[DLL Runtime] " << FunctionName << Stream::Endl;
-    });
+        if (Info.Address)
+        {
+            Stream::Out::Serial
+                << " -> 0x" << Stream::Hexadecimal << Info.Address << Stream::Decimal;
+        }
 
-    // Log DLL runtime failures and unimplemented paths
-    Dll::Runtime::OnUnhandledCall.Subscribe([](const Dll::Runtime::UnhandledCallInfo& Info)
-    {
-        Stream::Out::Serial
-            << "[DLL Runtime][Unhandled] " << Info.FunctionName << ": " << Info.Reason << Stream::Endl;
+        if (Info.Rip)
+        {
+            Stream::Out::Serial
+                << " RIP=0x" << Stream::Hexadecimal << Info.Rip;
+
+            if (Info.Rva)
+            {
+                Stream::Out::Serial
+                    << " RVA=0x" << Info.Rva;
+            }
+
+            if (!Info.SectionName.Empty())
+            {
+                Stream::Out::Serial
+                    << " Section=" << Info.SectionName;
+            }
+
+            Stream::Out::Serial << Stream::Decimal;
+        }
+
+        Stream::Out::Serial << Stream::Endl;
     });
 
     Dll::Loader::ImportResolver Resolver{};
+
     Dll::Runtime::InitializeHostContext(&UEFI::Context::SystemTable(), &UEFI::Context::BootServices(), &UEFI::Context::RuntimeServices());
+
     Dll::Runtime::HostRuntime::Register(Resolver);
 
     Stream::FileInputStream DllFile{ "UefiDll.dll" };
@@ -106,6 +99,9 @@ auto Main([[maybe_unused]] const Vector<String>& Args) -> Foundation::Bool
         return false;
     }
 
+    Dll::Runtime::SetTraceImageContext(Loader.Base(), Loader.Size());
+    Dll::Runtime::SetCurrentImageBase(Loader.Base());
+
     Stream::Out::Serial
         << "DLL loaded at: 0x" << Loader.Base() << " (" << Loader.Size() << " bytes)" << Stream::Endl;
 
@@ -116,17 +112,19 @@ auto Main([[maybe_unused]] const Vector<String>& Args) -> Foundation::Bool
     {
         Stream::Out::Serial
             << "DllMain export not found" << Stream::Endl;
+
+        Dll::Runtime::ClearTraceImageContext();
+        Loader.Unload();
         return false;
     }
 
-    Dll::Runtime::SetCurrentImageBase(Loader.Base());
-
     const auto Status = DllMain();
 
+    Dll::Runtime::ClearTraceImageContext();
     Loader.Unload();
 
-	Stream::Out::Serial
-		<< "DllMain returned: " << Status << Stream::Endl;
+    Stream::Out::Serial
+        << "DllMain returned: " << Status << Stream::Endl;
 
     return true;
 }

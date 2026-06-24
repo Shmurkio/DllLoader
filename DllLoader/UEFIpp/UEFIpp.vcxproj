@@ -176,6 +176,7 @@
     <ClCompile Include="Dll\Source\Runtime\Msvc\FuncInfo4.cpp" />
     <ClCompile Include="Dll\Source\Runtime\Msvc\ThrowInfo.cpp" />
     <ClCompile Include="Dll\Source\Runtime\Msvc\UnwindInfo.cpp" />
+    <ClCompile Include="Dll\Source\Runtime\Trace.cpp" />
     <ClCompile Include="Entry.cpp" />
     <ClCompile Include="UEFIpp\Source\Bus\Pci.cpp" />
     <ClCompile Include="UEFIpp\Source\Bus\PciDevice.cpp" />
@@ -218,6 +219,7 @@
     <ClInclude Include="Dll\Include\Dll\Runtime\Msvc\ThrowInfo.hpp" />
     <ClInclude Include="Dll\Include\Dll\Runtime\Msvc\UnwindInfo.hpp" />
     <ClInclude Include="Dll\Include\Dll\Runtime\Runtime.hpp" />
+    <ClInclude Include="Dll\Include\Dll\Runtime\Trace.hpp" />
     <ClInclude Include="UEFIpp\Include\UEFIpp\Bus\Bus.hpp" />
     <ClInclude Include="UEFIpp\Include\UEFIpp\Bus\Pci.hpp" />
     <ClInclude Include="UEFIpp\Include\UEFIpp\Bus\PciClass.hpp" />

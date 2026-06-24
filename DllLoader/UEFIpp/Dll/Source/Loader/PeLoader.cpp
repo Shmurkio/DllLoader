@@ -1,4 +1,5 @@
 #include <Dll/Loader/PeLoader.hpp>
+#include <Dll/Runtime/Trace.hpp>
 
 namespace
 {
@@ -148,9 +149,6 @@ namespace
 
 namespace Dll::Loader
 {
-    Event<LoadEventInfo> OnLoadEvent{};
-    Event<LoadFailedInfo> OnLoadFailed{};
-
     PeLoader::~PeLoader()
     {
         Unload();
@@ -182,11 +180,11 @@ namespace Dll::Loader
     {
         Unload();
 
-        OnLoadEvent({ LoadStage::Begin, nullptr, 0 });
+        DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Begin load");
 
         if (!FileBuffer)
         {
-            OnLoadFailed({ LoadStage::Begin, "FileBuffer is null" });
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "FileBuffer is null");
             return false;
         }
 
@@ -194,7 +192,7 @@ namespace Dll::Loader
 
         if (!RawImage.IsValid() || !RawImage.Is64())
         {
-            OnLoadFailed({ LoadStage::Begin, "Invalid or non-x64 PE image" });
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Invalid or non-x64 PE image");
             return false;
         }
 
@@ -205,17 +203,17 @@ namespace Dll::Loader
 
         if (ImageSize == 0 || HeaderSize == 0)
         {
-            OnLoadFailed({ LoadStage::Begin, "Invalid image/header size" });
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Invalid image/header size");
             return false;
         }
 
-        OnLoadEvent({ LoadStage::AllocateImage, nullptr, ImageSize });
+        DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Allocating image");
 
         Base_ = new Foundation::Uint8[ImageSize];
 
         if (!Base_)
         {
-            OnLoadFailed({ LoadStage::AllocateImage, "Image allocation failed" });
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Image allocation failed");
             return false;
         }
 
@@ -224,7 +222,7 @@ namespace Dll::Loader
         Memory::Zero(Base_, Size_);
         Memory::Copy(Base_, FileBuffer, HeaderSize);
 
-        OnLoadEvent({ LoadStage::CopyHeaders, Base_, HeaderSize });
+        DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Headers copied");
 
         for (const auto& Section : RawImage.Sections())
         {
@@ -237,7 +235,7 @@ namespace Dll::Loader
 
             if (!Source)
             {
-                OnLoadFailed({ LoadStage::CopySections, "Failed to resolve raw section data" });
+                DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Failed to resolve raw section data");
                 Unload();
                 return false;
             }
@@ -250,36 +248,36 @@ namespace Dll::Loader
             Memory::Copy(Destination, Source, CopySize);
         }
 
-        OnLoadEvent({ LoadStage::CopySections, Base_, Size_ });
+        DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Sections copied");
 
         UEFIpp::Loader::PeImage MappedImage{ Base_ };
 
         if (!MappedImage.IsValid() || !MappedImage.Is64())
         {
-            OnLoadFailed({ LoadStage::CopySections, "Mapped image is invalid" });
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Mapped image is invalid");
             Unload();
             return false;
         }
 
-        OnLoadEvent({ LoadStage::ApplyRelocations, Base_, Size_ });
+        DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Applying relocations");
 
         if (!ApplyRelocations(Base_, MappedImage, PreferredBase))
         {
-            OnLoadFailed({ LoadStage::ApplyRelocations, "Failed to apply relocations" });
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Failed to apply relocations");
             Unload();
             return false;
         }
 
-        OnLoadEvent({ LoadStage::ResolveImports, Base_, Size_ });
+        DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Resolving imports");
 
         if (!ResolveImports(Base_, MappedImage, Resolver))
         {
-            OnLoadFailed({ LoadStage::ResolveImports, "Failed to resolve imports" });
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Failed to resolve imports");
             Unload();
             return false;
         }
 
-        OnLoadEvent({ LoadStage::Finished, Base_, Size_ });
+        DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Load finished");
 
         return true;
     }
@@ -288,13 +286,39 @@ namespace Dll::Loader
     {
         if (Base_)
         {
-            OnLoadEvent({ LoadStage::Unload, Base_, Size_ });
+            DLL_TRACE_INFO(::Dll::Runtime::TraceCategory::Loader, "Unloading image");
 
             delete[] Base_;
             Base_ = nullptr;
         }
 
         Size_ = 0;
+    }
+
+    auto PeLoader::Export(StringView Name) const -> Foundation::Void*
+    {
+        if (!Base_)
+        {
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Export lookup without loaded image");
+            return nullptr;
+        }
+
+        const auto MappedImage = Image();
+        const auto Export = MappedImage.Export(Name);
+
+        if (!Export)
+        {
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Export not found");
+            return nullptr;
+        }
+
+        if (Export->Forwarded)
+        {
+            DLL_TRACE_ERROR(::Dll::Runtime::TraceCategory::Loader, "Forwarded export is not supported");
+            return nullptr;
+        }
+
+        return Foundation::Cast::Auto<Foundation::Void*>(Base_ + Export->Rva);
     }
 
     auto PeLoader::Image() const -> UEFIpp::Loader::PeImage
@@ -305,23 +329,5 @@ namespace Dll::Loader
     auto PeLoader::Base() const -> Foundation::Void*
     {
         return Base_;
-    }
-
-    auto PeLoader::Export(StringView Name) const -> Foundation::Void*
-    {
-        if (!Base_)
-        {
-            return nullptr;
-        }
-
-        const auto MappedImage = Image();
-        const auto Export = MappedImage.Export(Name);
-
-        if (!Export || Export->Forwarded)
-        {
-            return nullptr;
-        }
-
-        return Foundation::Cast::Auto<Foundation::Void*>(Base_ + Export->Rva);
     }
 }

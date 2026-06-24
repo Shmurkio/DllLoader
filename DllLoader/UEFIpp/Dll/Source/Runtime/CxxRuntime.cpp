@@ -1,7 +1,5 @@
 #include <Dll/Runtime/CxxRuntime.hpp>
-
-#define LogCall() OnFuncCall(__func__)
-#define Unhandled(Reason) OnUnhandledCall({ __func__, Reason })
+#include <Dll/Runtime/Trace.hpp>
 
 namespace Dll::Runtime
 {
@@ -9,10 +7,8 @@ namespace Dll::Runtime
 
     extern "C" auto Terminate() -> Foundation::Void
     {
-        LogCall();
-
-        Stream::Out::Serial
-            << "Terminate called" << Stream::Endl;
+        DLL_CXX_TRACE(__func__);
+        DLL_TRACE_FATAL(::Dll::Runtime::TraceCategory::CXX, "Terminate called");
 
         for (;;)
         {
@@ -22,13 +18,13 @@ namespace Dll::Runtime
 
     extern "C" auto CxxNew(Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
         return Memory::Allocator::AllocatePool(Size);
     }
 
     extern "C" auto CxxDelete(Foundation::Void* Pointer) -> Foundation::Void
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
 
         if (Pointer)
         {
@@ -38,37 +34,37 @@ namespace Dll::Runtime
 
     extern "C" auto CxxNewArray(Foundation::Size Size) -> Foundation::Void*
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
         return CxxNew(Size);
     }
 
     extern "C" auto CxxDeleteArray(Foundation::Void* Pointer) -> Foundation::Void
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
         CxxDelete(Pointer);
     }
 
     extern "C" auto CxxNewNoThrow(Foundation::Size Size, const Foundation::Void*) -> Foundation::Void*
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
         return CxxNew(Size);
     }
 
     extern "C" auto CxxNewArrayNoThrow(Foundation::Size Size, const Foundation::Void*) -> Foundation::Void*
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
         return CxxNewArray(Size);
     }
 
     extern "C" auto CxxDeleteSized(Foundation::Void* Pointer, Foundation::Size) -> Foundation::Void
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
         CxxDelete(Pointer);
     }
 
     extern "C" auto CxxDeleteArraySized(Foundation::Void* Pointer, Foundation::Size) -> Foundation::Void
     {
-        LogCall();
+        DLL_CXX_TRACE(__func__);
         CxxDeleteArray(Pointer);
     }
 }

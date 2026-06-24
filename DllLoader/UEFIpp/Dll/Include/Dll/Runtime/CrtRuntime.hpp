@@ -5,15 +5,6 @@
 
 namespace Dll::Runtime
 {
-    struct UnhandledCallInfo
-    {
-        StringView FunctionName;
-        StringView Reason;
-    };
-
-    extern Event<StringView> OnFuncCall;
-    extern Event<UnhandledCallInfo> OnUnhandledCall;
-
     extern "C"
     {
         auto RuntimeMalloc(Foundation::Size Size) -> Foundation::Void*;
